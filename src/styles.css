@@ -1,0 +1,150 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --font-display: "DM Serif Display", ui-serif, Georgia, serif;
+  --font-hand: "Caveat", "Segoe Script", cursive;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-felt: var(--felt);
+  --color-felt-deep: var(--felt-deep);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-burgundy: var(--burgundy);
+  --color-cream: var(--cream);
+  --color-ivory: var(--ivory);
+  --color-ink: var(--ink);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --ink: oklch(0.18 0.02 150);
+  --felt-deep: oklch(0.24 0.05 155);
+  --felt: oklch(0.32 0.07 152);
+  --gold: oklch(0.78 0.14 82);
+  --gold-soft: oklch(0.87 0.09 85);
+  --burgundy: oklch(0.38 0.14 22);
+  --cream: oklch(0.95 0.03 85);
+  --ivory: oklch(0.97 0.02 85);
+
+  --background: var(--ink);
+  --foreground: var(--cream);
+  --card: oklch(0.22 0.03 150);
+  --card-foreground: var(--cream);
+  --popover: var(--card);
+  --popover-foreground: var(--cream);
+  --primary: var(--gold);
+  --primary-foreground: oklch(0.18 0.03 80);
+  --secondary: var(--burgundy);
+  --secondary-foreground: var(--cream);
+  --muted: oklch(0.24 0.02 150);
+  --muted-foreground: oklch(0.72 0.03 85);
+  --accent: var(--burgundy);
+  --accent-foreground: var(--cream);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: var(--cream);
+  --border: oklch(0.35 0.04 150 / 40%);
+  --input: oklch(0.35 0.04 150 / 40%);
+  --ring: var(--gold);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility font-display { font-family: var(--font-display); }
+@utility font-hand { font-family: var(--font-hand); }
+
+@utility bg-felt-texture {
+  background-color: var(--color-felt-deep);
+  background-image:
+    radial-gradient(ellipse at 20% 10%, oklch(0.36 0.08 152 / 0.6), transparent 55%),
+    radial-gradient(ellipse at 85% 90%, oklch(0.18 0.04 150 / 0.7), transparent 60%),
+    repeating-radial-gradient(circle at 50% 50%, oklch(1 0 0 / 0.015) 0 1px, transparent 1px 3px);
+}
+
+@utility bg-noise {
+  position: relative;
+}
+.bg-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
+}
+
+
+@utility text-gold-gradient {
+  background: linear-gradient(180deg, var(--color-gold-soft) 0%, var(--color-gold) 55%, oklch(0.55 0.14 65) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility ring-gold {
+  box-shadow: 0 0 0 1px var(--color-gold) inset, 0 10px 40px -10px oklch(0.78 0.14 82 / 0.35);
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+@utility animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility animate-shimmer {
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.15), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
