@@ -2,10 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import logoUrl from "@/assets/papik-chors-logo.png";
 import { ReservationModal } from "@/components/ReservationModal";
+import { WeekSchedule, formatHeroNextSlotSummary } from "@/components/WeekSchedule";
 import {
-  fetchClubNextSession,
+  fetchClubLanding,
   formatSessionWhen,
   formatTournamentBookingSummary,
+  type LandingSession,
 } from "@/lib/bookingApi";
 
 const CLUB_SLUG = import.meta.env.VITE_CLUB_SLUG ?? "papikchors";
@@ -70,15 +72,18 @@ function useAmbient() {
 function Index() {
   const { muted, toggle } = useAmbient();
   const [reservationOpen, setReservationOpen] = useState(false);
-  const [live, setLive] = useState<Awaited<ReturnType<typeof fetchClubNextSession>> | null>(null);
+  const [modalSessions, setModalSessions] = useState<LandingSession[]>([]);
+  const [landing, setLanding] = useState<Awaited<ReturnType<typeof fetchClubLanding>> | null>(
+    null
+  );
   const [liveErr, setLiveErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchClubNextSession(CLUB_SLUG)
+    void fetchClubLanding(CLUB_SLUG)
       .then((r) => {
         if (!cancelled) {
-          setLive(r);
+          setLanding(r);
           setLiveErr(null);
         }
       })
@@ -90,54 +95,68 @@ function Index() {
     };
   }, []);
 
-  const nextGameLabel =
-    live?.session != null ? formatSessionWhen(live.session.startsAt) : "Скоро объявим дату";
+  const heroSlot = formatHeroNextSlotSummary(landing?.nextSlot ?? null);
+  const primarySession = landing?.nextSlot?.sessions[0] ?? null;
 
-  const tournamentSummary = live?.session
-    ? formatTournamentBookingSummary({
-        startsAt: live.session.startsAt,
-        registrationClosesAt:
-          live.booking?.registrationClosesAt ?? live.session.registrationClosesAt ?? null,
-        inProgress: live.booking?.inProgress ?? false,
-      })
+  const tournamentSummary = primarySession
+    ? landing!.nextSlot!.sessions.length === 1
+      ? formatTournamentBookingSummary({
+          startsAt: primarySession.startsAt,
+          registrationClosesAt: primarySession.registrationClosesAt,
+          inProgress: primarySession.phase === "LATE_REGISTRATION",
+        })
+      : "Несколько площадок в это время — выберите нужную в форме записи."
     : liveErr
       ? "Не удалось загрузить расписание. Попробуйте обновить страницу."
       : null;
 
   const bookingBaseUrl =
-    import.meta.env.VITE_BOOKING_APP_URL ?? live?.bookingBaseUrl ?? "http://localhost:5173";
+    import.meta.env.VITE_BOOKING_APP_URL ?? landing?.bookingBaseUrl ?? "http://localhost:5173";
 
-  function openBooking() {
+  function openBooking(sessions?: LandingSession[]) {
+    const list =
+      sessions ??
+      landing?.nextSlot?.sessions.filter((s) => s.bookable) ??
+      [];
+    setModalSessions(list);
     setReservationOpen(true);
   }
 
   return (
     <div className="min-h-screen bg-felt-texture text-cream overflow-x-hidden">
-      <Nav muted={muted} onToggleSound={toggle} onBook={openBooking} />
-      <Hero onBook={openBooking} tournamentSummary={tournamentSummary} />
+      <Nav muted={muted} onToggleSound={toggle} onBook={() => openBooking()} />
+      <Hero
+        onBook={() => openBooking()}
+        heroHeadline={heroSlot.headline}
+        heroDetail={heroSlot.detail}
+        heroSeats={heroSlot.seatsLabel}
+        bookingClosed={heroSlot.bookingClosed || landing?.subscriptionExpired === true}
+        tournamentSummary={tournamentSummary}
+        multiVenue={(landing?.nextSlot?.sessions.length ?? 0) > 1}
+      />
       <Legend />
       <HouseRules />
-      <Locations />
+      <Locations venues={landing?.venues ?? []} onBook={(s) => openBooking([s])} />
+      {landing && !landing.subscriptionExpired && (
+        <WeekSchedule sessions={landing.weekSchedule} onBook={(s) => openBooking([s])} />
+      )}
       <Hands />
       <JoinTable
-        onBook={openBooking}
-        nextGameLabel={nextGameLabel}
+        onBook={() => openBooking()}
+        heroHeadline={heroSlot.headline}
+        heroDetail={heroSlot.detail}
         tournamentSummary={tournamentSummary}
-        bookingClosed={live != null && live.session == null}
-        seatsLabel={
-          live?.seats && live.seats.total > 0
-            ? `${live.seats.free} из ${live.seats.total} мест`
-            : null
-        }
+        bookingClosed={heroSlot.bookingClosed || landing?.subscriptionExpired === true}
+        seatsLabel={heroSlot.seatsLabel}
+        multiVenue={(landing?.nextSlot?.sessions.length ?? 0) > 1}
       />
       <Footer />
       <ReservationModal
         open={reservationOpen}
         onClose={() => setReservationOpen(false)}
-        nextGameDate={nextGameLabel}
-        sessionId={live?.session?.id ?? null}
+        sessions={modalSessions}
         bookingBaseUrl={bookingBaseUrl}
-        firstVisitFree={live?.pricing.firstVisitFree ?? true}
+        firstVisitFree={landing?.pricing.firstVisitFree ?? true}
         clubSlug={CLUB_SLUG}
       />
     </div>
@@ -175,6 +194,9 @@ function Nav({
         <a href="#tables" className="hover:text-gold transition-colors">
           Столы
         </a>
+        <a href="#schedule" className="hover:text-gold transition-colors">
+          Расписание
+        </a>
         <a href="#hands" className="hover:text-gold transition-colors">
           Легендарные раздачи
         </a>
@@ -202,10 +224,20 @@ function Nav({
 
 function Hero({
   onBook,
+  heroHeadline,
+  heroDetail,
+  heroSeats,
+  bookingClosed,
   tournamentSummary,
+  multiVenue,
 }: {
   onBook: () => void;
+  heroHeadline: string;
+  heroDetail: string | null;
+  heroSeats: string | null;
+  bookingClosed: boolean;
   tournamentSummary: string | null;
+  multiVenue: boolean;
 }) {
   return (
     <header id="top" className="relative overflow-x-hidden">
@@ -250,17 +282,31 @@ function Hero({
             а блефы совершенно бесстыжие.
           </p>
 
+          {!bookingClosed && (
+            <div className="mt-6 max-w-xl rounded-2xl border border-gold/20 bg-gold/5 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-gold-soft">Ближайший турнир</p>
+              <p className="mt-1 font-display text-xl capitalize text-cream">{heroHeadline}</p>
+              {heroDetail && <p className="mt-1 text-sm text-cream/75">{heroDetail}</p>}
+              {heroSeats && (
+                <p className="mt-1 text-sm text-gold-soft">Свободно {heroSeats}</p>
+              )}
+            </div>
+          )}
+
           {tournamentSummary && (
-            <p className="mt-6 max-w-xl text-sm leading-relaxed text-cream/70">{tournamentSummary}</p>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-cream/70">{tournamentSummary}</p>
           )}
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <button
               type="button"
               onClick={onBook}
-              className="group relative overflow-hidden rounded-full bg-gold px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-xl shadow-gold/25 transition-transform hover:scale-105"
+              disabled={bookingClosed}
+              className="group relative overflow-hidden rounded-full bg-gold px-7 py-3.5 text-base font-semibold text-primary-foreground shadow-xl shadow-gold/25 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="relative z-10">Забронировать место</span>
+              <span className="relative z-10">
+                {multiVenue ? "Выбрать площадку" : "Забронировать место"}
+              </span>
               <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
             <a
@@ -487,42 +533,64 @@ function HouseRules() {
   );
 }
 
-function Locations() {
+function Locations({
+  venues,
+  onBook,
+}: {
+  venues: Array<{
+    id: string;
+    name: string;
+    city: string;
+    address: string;
+    nextSession: LandingSession | null;
+  }>;
+  onBook: (session: LandingSession) => void;
+}) {
   return (
     <section id="tables" className="mx-auto max-w-7xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
         <p className="font-hand text-2xl text-gold">Где мы играем</p>
         <h2 className="mt-2 font-display text-5xl leading-tight sm:text-6xl">
-          Два города. Одни усы.
+          Площадки клуба
         </h2>
         <p className="mt-5 text-cream/70">
-          Папик не летает — усы создают слишком большое сопротивление воздуха. Поэтому клуб курсирует
-          между двумя любимыми залами.
+          Живые залы — с записью. Ереван — в планах, следите за новостями.
         </p>
       </div>
 
       <div className="mt-14 grid gap-6 md:grid-cols-2">
+        {venues.map((v) => (
+          <LocationCard
+            key={v.id}
+            city={v.city}
+            title={v.name}
+            tag={
+              v.nextSession
+                ? `Ближайшая игра · ${formatSessionWhen(v.nextSession.startsAt)}`
+                : "Активная площадка"
+            }
+            desc={v.address}
+            motif={v.city.toLowerCase().includes("адлер") ? "🌊" : "⛰"}
+            highlights={
+              v.nextSession
+                ? [
+                    `${v.nextSession.seats.free} из ${v.nextSession.seats.total} мест`,
+                    v.nextSession.bookable ? "Запись открыта" : "Мест нет",
+                  ]
+                : ["Расписание скоро"]
+            }
+            onBook={
+              v.nextSession?.bookable ? () => onBook(v.nextSession!) : undefined
+            }
+          />
+        ))}
         <LocationCard
           city="Ереван"
-          tag="По выходным · Священные сессии"
-          desc="Тёплая задняя комната у улицы Сарьяна. Коньяк на полке, тонирный хлеб на столе и полосатый кот по кличке Chess, который всё контролирует."
+          tag="Скоро открытие"
+          desc="Тёплая задняя комната улицы Сарьяна ждёт своего часа. Коньяк на полке уже стоит."
           motif="⛰"
-          highlights={[
-            "Армянский кофе — бесконечно",
-            "Ночные дегустации коньяка",
-            "Кот-судья: Chess",
-          ]}
-        />
-        <LocationCard
-          city="Сочи"
-          tag="Летом · Приморские турниры"
-          desc="Тенистая терраса, где пальмы наклоняются, чтобы подсмотреть в твои карты. Морю плевать на твой бэд-бит. Папику — чуть-чуть да."
-          motif="🌊"
-          highlights={[
-            "Хедз-ап на закате",
-            "Свежий инжир между раздачами",
-            "Настоящий океан, настоящий бриз",
-          ]}
+          highlights={["Армянский кофе — бесконечно", "Кот-судья Chess", "Следите за анонсом"]}
+          comingSoon
         />
       </div>
     </section>
@@ -531,25 +599,45 @@ function Locations() {
 
 function LocationCard({
   city,
+  title,
   tag,
   desc,
   motif,
   highlights,
+  onBook,
+  comingSoon,
 }: {
   city: string;
+  title?: string;
   tag: string;
   desc: string;
   motif: string;
   highlights: string[];
+  onBook?: () => void;
+  comingSoon?: boolean;
 }) {
   return (
-    <article className="group relative overflow-hidden rounded-3xl border border-cream/10 bg-gradient-to-br from-felt to-felt-deep p-8 shadow-2xl shadow-black/40 transition-all hover:border-gold/40">
+    <article
+      className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br from-felt to-felt-deep p-8 shadow-2xl shadow-black/40 transition-all ${
+        comingSoon
+          ? "border-cream/10 opacity-90"
+          : "border-cream/10 hover:border-gold/40"
+      }`}
+    >
       <div className="pointer-events-none absolute -right-10 -top-10 text-[10rem] opacity-10 transition-opacity group-hover:opacity-20">
         {motif}
       </div>
       <div className="relative">
-        <div className="text-xs uppercase tracking-[0.25em] text-gold-soft">{tag}</div>
-        <h3 className="mt-2 font-display text-5xl text-cream">{city}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-xs uppercase tracking-[0.25em] text-gold-soft">{tag}</div>
+          {comingSoon && (
+            <span className="rounded-full border border-cream/20 px-2 py-0.5 text-[10px] uppercase tracking-wider text-cream/55">
+              скоро
+            </span>
+          )}
+        </div>
+        <h3 className="mt-2 font-display text-5xl text-cream">{title ?? city}</h3>
+        {title && <p className="mt-1 text-sm text-cream/55">{city}</p>}
         <p className="mt-4 max-w-md text-cream/70">{desc}</p>
         <ul className="mt-8 space-y-2 text-sm text-cream/80">
           {highlights.map((h) => (
@@ -558,6 +646,15 @@ function LocationCard({
             </li>
           ))}
         </ul>
+        {onBook && (
+          <button
+            type="button"
+            onClick={onBook}
+            className="mt-8 rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold transition-colors hover:bg-gold/10"
+          >
+            Записаться сюда
+          </button>
+        )}
       </div>
     </article>
   );
@@ -616,16 +713,20 @@ function Hands() {
 
 function JoinTable({
   onBook,
-  nextGameLabel,
+  heroHeadline,
+  heroDetail,
   tournamentSummary,
   bookingClosed,
   seatsLabel,
+  multiVenue,
 }: {
   onBook: () => void;
-  nextGameLabel: string;
+  heroHeadline: string;
+  heroDetail: string | null;
   tournamentSummary: string | null;
   bookingClosed: boolean;
   seatsLabel: string | null;
+  multiVenue: boolean;
 }) {
   return (
     <section id="join" className="relative overflow-hidden py-28">
@@ -646,7 +747,7 @@ function JoinTable({
           {tournamentSummary ??
             (bookingClosed
               ? "Ближайший турнир пока не открыт для записи. Загляни позже — или спроси Папика лично."
-              : `Ближайший турнир: ${nextGameLabel}.`)}
+              : `Ближайший турнир: ${heroHeadline}${heroDetail ? ` · ${heroDetail}` : ""}.`)}
         </p>
         {seatsLabel && !bookingClosed && (
           <p className="mt-3 text-sm text-gold-soft">Свободно {seatsLabel}</p>
@@ -658,7 +759,7 @@ function JoinTable({
           disabled={bookingClosed}
           className="mx-auto mt-10 rounded-full bg-gold px-8 py-4 text-base font-semibold text-primary-foreground shadow-xl shadow-gold/25 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Сдай мне карты
+          {multiVenue ? "Выбрать площадку" : "Сдай мне карты"}
         </button>
 
         <p className="mt-4 text-xs uppercase tracking-widest text-cream/40">

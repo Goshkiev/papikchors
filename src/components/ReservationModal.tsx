@@ -4,6 +4,8 @@ import {
   buildBookingLoginUrl,
   createLandingOfferPreviewToken,
   fetchPublicOfferBundle,
+  sessionToPickerLabel,
+  type LandingSession,
   type PublicOfferBundle,
 } from "../lib/bookingApi";
 import { OfferTextModal } from "./OfferTextModal";
@@ -21,8 +23,7 @@ const schema = z.object({
 type Props = {
   open: boolean;
   onClose: () => void;
-  nextGameDate: string;
-  sessionId: string | null;
+  sessions: LandingSession[];
   bookingBaseUrl: string;
   firstVisitFree: boolean;
   clubSlug: string;
@@ -31,8 +32,7 @@ type Props = {
 export function ReservationModal({
   open,
   onClose,
-  nextGameDate,
-  sessionId,
+  sessions,
   bookingBaseUrl,
   firstVisitFree,
   clubSlug,
@@ -44,6 +44,13 @@ export function ReservationModal({
   const [offers, setOffers] = useState<PublicOfferBundle | null>(null);
   const [acceptClubOffer, setAcceptClubOffer] = useState(false);
   const [readOffer, setReadOffer] = useState<"club" | null>(null);
+  const [pickedSessionId, setPickedSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setPickedSessionId(sessions[0]?.id ?? null);
+    setError(null);
+  }, [open, sessions]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +82,10 @@ export function ReservationModal({
 
   if (!open) return null;
 
+  const picked = sessions.find((s) => s.id === pickedSessionId) ?? null;
+  const pickers = sessions.map(sessionToPickerLabel);
+  const showPicker = sessions.length > 1;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -87,8 +98,8 @@ export function ReservationModal({
       setError(parsed.error.issues[0]?.message ?? "Проверьте поля");
       return;
     }
-    if (!sessionId) {
-      setError("Ближайшая игра пока не открыта для записи. Попробуйте позже.");
+    if (!pickedSessionId || !picked) {
+      setError("Выберите площадку и игру.");
       return;
     }
     if (!acceptClubOffer) {
@@ -107,7 +118,7 @@ export function ReservationModal({
       );
       const url = buildBookingLoginUrl({
         bookingBaseUrl,
-        sessionId,
+        sessionId: pickedSessionId,
         name: parsed.data.name,
         phone: parsed.data.contact,
         offerPreviewToken,
@@ -141,13 +152,56 @@ export function ReservationModal({
         <div className="mb-6">
           <p className="text-xs uppercase tracking-[0.2em] text-gold mb-2">Запись на игру</p>
           <h3 id="reservation-title" className="font-display text-2xl text-cream">
-            Ближайший турнир
+            {showPicker ? "Выберите площадку" : "Ближайший турнир"}
           </h3>
-          <p className="mt-1 text-sm text-cream/70">{nextGameDate}</p>
+          {picked && !showPicker && (
+            <>
+              <p className="mt-1 text-sm text-cream/70">{pickers[0]?.detail}</p>
+              <p className="mt-1 text-sm text-cream/80">{pickers[0]?.headline}</p>
+            </>
+          )}
           {firstVisitFree && (
             <p className="mt-2 text-sm text-gold-soft/90">Первый визит — вход бесплатно.</p>
           )}
         </div>
+
+        {showPicker && (
+          <fieldset className="mb-6 space-y-2 border-0 p-0">
+            <legend className="mb-2 text-xs uppercase tracking-wider text-cream/50">
+              Площадка и время
+            </legend>
+            {pickers.map((p) => (
+              <label
+                key={p.id}
+                className={`flex cursor-pointer gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                  pickedSessionId === p.id
+                    ? "border-gold/50 bg-gold/5"
+                    : "border-cream/15 bg-ink/50 hover:border-cream/25"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="session"
+                  value={p.id}
+                  checked={pickedSessionId === p.id}
+                  onChange={() => setPickedSessionId(p.id)}
+                  className="mt-1 accent-gold"
+                />
+                <span>
+                  <span className="block font-medium text-cream">{p.headline}</span>
+                  <span className="block text-sm text-cream/65">{p.detail}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+        {sessions.length === 0 && (
+          <p className="mb-6 text-sm text-cream/70">
+            Запись пока закрыта. Выберите игру в расписании или загляните позже.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-xs uppercase tracking-wider text-cream/50 mb-2">
@@ -217,7 +271,7 @@ export function ReservationModal({
           )}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || sessions.length === 0}
             className="w-full rounded-full bg-gold px-6 py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-primary-foreground hover:scale-[1.02] transition disabled:opacity-60"
           >
             {submitting ? "Переход…" : "Продолжить к записи и оплате"}

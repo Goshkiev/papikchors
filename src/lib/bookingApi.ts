@@ -8,6 +8,46 @@ export type PublicSessionLite = {
   phase?: "UPCOMING" | "LATE_REGISTRATION" | "CLOSED";
 };
 
+export type LandingVenue = {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  address: string;
+  nextSession: LandingSession | null;
+};
+
+export type LandingSession = {
+  id: string;
+  title: string;
+  startsAt: string;
+  registrationClosesAt: string;
+  phase: "UPCOMING" | "LATE_REGISTRATION" | "CLOSED";
+  venue: { id: string; name: string; city: string; address: string } | null;
+  seats: { free: number; total: number };
+  bookable: boolean;
+};
+
+export type LandingNextSlot = {
+  startsAt: string;
+  sessions: LandingSession[];
+};
+
+export type ClubLanding = {
+  club: { name: string; slug: string };
+  bookingBaseUrl: string;
+  subscriptionExpired: boolean;
+  pricing: {
+    currency: string;
+    entryListCents: number;
+    seatPickSurchargeCents: number;
+    firstVisitFree: boolean;
+  };
+  nextSlot: LandingNextSlot | null;
+  weekSchedule: LandingSession[];
+  venues: LandingVenue[];
+};
+
 export type ClubNextSession = {
   club: { name: string; slug: string };
   bookingBaseUrl: string;
@@ -31,6 +71,16 @@ export type PublicOfferBundle = {
   club: { id: string; name: string; slug: string };
   clubOffer: { id: string; version: number; text: string; publishedAt: string } | null;
 };
+
+export async function fetchClubLanding(slug: string): Promise<ClubLanding> {
+  const res = await fetch(`${apiBase}/api/public/clubs/${encodeURIComponent(slug)}/landing`);
+  const text = await res.text();
+  const data = text ? (JSON.parse(text) as ClubLanding & { error?: string }) : null;
+  if (!res.ok) {
+    throw new Error(data?.error ?? `API ${res.status}`);
+  }
+  return data as ClubLanding;
+}
 
 export async function fetchClubNextSession(slug: string): Promise<ClubNextSession> {
   const res = await fetch(`${apiBase}/api/public/clubs/${encodeURIComponent(slug)}/next-session`);
@@ -91,6 +141,34 @@ function relativeDayHint(event: Date, now = new Date()): string {
   tomorrow.setDate(tomorrow.getDate() + 1);
   if (isSameLocalCalendarDay(event, tomorrow)) return "завтра";
   return "";
+}
+
+export function formatVenueLine(
+  venue: LandingSession["venue"],
+  fallback = "Площадка уточняется"
+): string {
+  if (!venue) return fallback;
+  return `${venue.city}, ${venue.name}`;
+}
+
+export function sessionToPickerLabel(session: LandingSession): {
+  id: string;
+  headline: string;
+  detail: string;
+} {
+  const time = new Date(session.startsAt).toLocaleString("ru-RU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
+  });
+  return {
+    id: session.id,
+    headline: formatVenueLine(session.venue),
+    detail: `${time} · ${session.seats.free} из ${session.seats.total} мест`,
+  };
 }
 
 export function formatTournamentBookingSummary(opts: {
