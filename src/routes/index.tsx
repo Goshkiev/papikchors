@@ -214,8 +214,8 @@ function Hero({
         <div className="absolute -right-32 top-64 h-96 w-96 rounded-full bg-gold/20 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-6 pb-12 pt-10 md:grid-cols-[1.05fr_0.95fr] md:gap-14 md:pb-20 md:pt-16">
-        <div className="relative order-2 md:order-none">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-6 pb-20 pt-10 md:grid-cols-[1.05fr_0.95fr] md:gap-14 md:pt-16">
+        <div className="relative">
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/5 px-3 py-1 text-xs uppercase tracking-[0.2em] text-gold-soft">
             <span className="h-1.5 w-1.5 rounded-full bg-gold" />
             основан где-то между Сочи и Ереваном
@@ -280,21 +280,18 @@ function Hero({
           </div>
         </div>
 
-        <div className="relative order-1 mx-auto w-full max-w-[560px] px-1 pb-4 md:order-none md:px-0 md:pb-0">
-          <div className="pointer-events-none absolute -inset-8 rounded-full bg-gold/10 blur-3xl" />
-          <div className="animate-float-slow relative pb-2">
-            <img
-              src={logoUrl}
-              alt="Papik Chors Poker Club — усатый король с Королём Пик и Четвёркой Червей"
-              className="relative z-10 block h-auto w-full max-w-full drop-shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
-              width={1080}
-              height={1080}
-            />
-          </div>
-          <div className="mt-2 font-hand text-xl text-gold sm:text-2xl md:absolute md:-left-2 md:top-10 md:mt-0 md:rotate-[-14deg] md:text-3xl">
+        <div className="relative mx-auto w-full max-w-[560px]">
+          <img
+            src={logoUrl}
+            alt="Papik Chors Poker Club — усатый король с Королём Пик и Четвёркой Червей"
+            className="relative z-10 w-full drop-shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
+            width={1080}
+            height={1080}
+          />
+          <div className="absolute -left-2 top-10 rotate-[-14deg] font-hand text-2xl text-gold sm:text-3xl">
             «опять он с этим...»
           </div>
-          <div className="mt-1 text-right font-hand text-xl text-cream sm:text-2xl md:absolute md:-right-2 md:bottom-16 md:mt-0 md:rotate-[10deg] md:text-3xl">
+          <div className="absolute -right-2 bottom-16 rotate-[10deg] font-hand text-2xl text-cream sm:text-3xl">
             олл-ин, детка ♥
           </div>
         </div>
