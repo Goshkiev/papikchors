@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import logo from "@/assets/papik-chors-logo.png.asset.json";
+import logoUrl from "@/assets/papik-chors-logo.png";
 import { ReservationModal } from "@/components/ReservationModal";
 import {
   fetchClubNextSession,
@@ -14,8 +14,8 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { property: "og:image", content: `https://papikchors.ru${logo.url}` },
-      { name: "twitter:image", content: `https://papikchors.ru${logo.url}` },
+      { property: "og:image", content: `https://papikchors.ru${logoUrl}` },
+      { name: "twitter:image", content: `https://papikchors.ru${logoUrl}` },
     ],
   }),
 });
@@ -157,7 +157,7 @@ function Nav({
     <nav className="relative z-30 mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:py-7">
       <a href="#top" className="flex items-center gap-3">
         <img
-          src={logo.url}
+          src={logoUrl}
           alt="Papik Chors"
           className="h-11 w-11 shrink-0 object-contain sm:h-12 sm:w-12"
           width={48}
@@ -284,7 +284,7 @@ function Hero({
           <div className="pointer-events-none absolute -inset-8 rounded-full bg-gold/10 blur-3xl" />
           <div className="animate-float-slow relative">
             <img
-              src={logo.url}
+              src={logoUrl}
               alt="Papik Chors Poker Club — усатый король с Королём Пик и Четвёркой Червей"
               className="relative z-10 w-full drop-shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
               width={1080}
@@ -679,7 +679,7 @@ function Footer() {
         <div>
           <div className="flex items-center gap-3">
             <img
-              src={logo.url}
+              src={logoUrl}
               alt="Papik Chors"
               className="h-11 w-11 shrink-0 object-contain sm:h-12 sm:w-12"
               width={48}
