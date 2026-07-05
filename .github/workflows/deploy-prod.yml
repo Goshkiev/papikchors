@@ -1,0 +1,40 @@
+name: Deploy prod
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Введите deploy-prod для подтверждения (только при ручном запуске)'
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-prod-papikchors
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Confirm manual deploy
+        if: github.event_name == 'workflow_dispatch' && inputs.confirm != 'deploy-prod'
+        run: |
+          echo 'Неверное подтверждение. Введите deploy-prod в поле confirm.'
+          exit 1
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            export GIT_CONFIG_COUNT=1
+            export GIT_CONFIG_KEY_0=safe.directory
+            export GIT_CONFIG_VALUE_0=/opt/papikchors
+            bash /opt/papikchors/deploy/scripts/deploy.sh prod
