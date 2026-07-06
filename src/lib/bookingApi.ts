@@ -207,6 +207,8 @@ export function buildBookingLoginUrl(opts: {
   const base = opts.bookingBaseUrl.replace(/\/$/, "");
   const nextParams = new URLSearchParams({ source: "landing" });
   if (opts.offerPreviewToken) nextParams.set("offerToken", opts.offerPreviewToken);
+  nextParams.set("phone", opts.phone);
+  if (opts.name.trim()) nextParams.set("name", opts.name.trim());
   const next = `/play/${opts.sessionId}?${nextParams.toString()}`;
   const q = new URLSearchParams({
     next,
