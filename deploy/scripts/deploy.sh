@@ -30,8 +30,13 @@ deploy_profile() {
   local p="$1"
   local env_file="${APP_DIR}/deploy/env/${p}.env"
   if [ ! -f "$env_file" ]; then
-    echo "Missing ${env_file} — copy from ${env_file}.example" >&2
-    exit 1
+    if [ -f "${env_file}.example" ]; then
+      echo "==> creating ${env_file} from example"
+      cp "${env_file}.example" "$env_file"
+    else
+      echo "Missing ${env_file} — copy from ${env_file}.example" >&2
+      exit 1
+    fi
   fi
 
   echo "==> docker compose --profile ${p} build"
