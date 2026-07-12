@@ -3,11 +3,13 @@ import { z } from "zod";
 import {
   buildBookingLoginUrl,
   createLandingOfferPreviewToken,
+  fetchClubLanding,
   fetchPublicOfferBundle,
   sessionToPickerLabel,
   type LandingSession,
   type PublicOfferBundle,
 } from "../lib/bookingApi";
+import { findBookableSession } from "../lib/clubLanding";
 import { OfferTextModal } from "./OfferTextModal";
 import {
   applyRuPhoneInputChange,
@@ -49,6 +51,9 @@ export function ReservationModal({
   useEffect(() => {
     if (!open) return;
     setPickedSessionId(sessions[0]?.id ?? null);
+    setName("");
+    setContact("+7 ");
+    setAcceptClubOffer(false);
     setError(null);
   }, [open, sessions]);
 
@@ -112,6 +117,13 @@ export function ReservationModal({
     }
     setSubmitting(true);
     try {
+      const fresh = await fetchClubLanding(clubSlug);
+      const stillBookable = findBookableSession(fresh, pickedSessionId);
+      if (!stillBookable) {
+        setError("Расписание обновилось — закройте форму и выберите актуальную игру.");
+        setSubmitting(false);
+        return;
+      }
       const offerPreviewToken = await createLandingOfferPreviewToken(
         clubSlug,
         offers.clubOffer.id
@@ -124,8 +136,10 @@ export function ReservationModal({
         offerPreviewToken,
       });
       window.location.href = url;
-    } catch {
-      setError("Не удалось перейти к записи. Попробуйте ещё раз.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Не удалось перейти к записи. Попробуйте ещё раз.";
+      setError(message);
       setSubmitting(false);
     }
   };
@@ -262,7 +276,8 @@ export function ReservationModal({
             </span>
           </label>
           <p className="text-xs text-cream/50">
-            Оферта сервиса записи подтверждается при входе в приложение записи.
+            Оферта сервиса записи и согласие на обработку данных подтверждаются на следующем шаге
+            при входе.
           </p>
           {error && (
             <p className="text-sm text-burgundy" role="alert">
@@ -277,7 +292,8 @@ export function ReservationModal({
             {submitting ? "Переход…" : "Продолжить к записи и оплате"}
           </button>
           <p className="text-xs text-center text-cream/50">
-            Дальше — подтверждение телефона и выбор: место за доплату или автоматическая посадка.
+            Дальше — вход по вашему телефону (без повторного ввода) и выбор места: за доплату или
+            автоматическая посадка.
           </p>
         </form>
       </div>
